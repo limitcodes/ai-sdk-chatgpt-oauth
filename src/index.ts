@@ -6,10 +6,12 @@ import type {
   LanguageModelV4GenerateResult,
   LanguageModelV4ResponseMetadata,
   LanguageModelV4Usage,
+  ProviderV4,
+  SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
 import { loadApiKey, withoutTrailingSlash } from "@ai-sdk/provider-utils";
-import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 
 const DEFAULT_BASE_URL = "https://chatgpt.com/backend-api/codex";
 const JWT_CLAIM_PATH = "https://api.openai.com/auth";
@@ -17,7 +19,7 @@ const TOKEN_URL = "https://auth.openai.com/oauth/token";
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
 
 export interface ChatGPTOAuthProviderSettings {
-  /** ChatGPT OAuth access token (JWT). Defaults to CHATGPT_ACCESS_TOKEN, CHATGPT_OAUTH_TOKEN, then OPENAI_CODEX_OAUTH_TOKEN. */
+  /** ChatGPT OAuth access token (JWT). Defaults to CHATGPT_ACCESS_TOKEN. */
   accessToken?: string;
   /** Optional account id. Defaults to CHATGPT_ACCOUNT_ID or the chatgpt_account_id claim inside the access token. */
   accountId?: string;
@@ -31,12 +33,9 @@ export interface ChatGPTOAuthProviderSettings {
   fetch?: typeof fetch;
 }
 
-export interface ChatGPTOAuthProvider extends OpenAIProvider {
+export interface ChatGPTOAuthProvider extends ProviderV4 {
   (modelId: string): LanguageModelV4;
   languageModel(modelId: string): LanguageModelV4;
-  responses(modelId: string): LanguageModelV4;
-  /** Underlying @ai-sdk/openai provider for escape hatches. */
-  openai: OpenAIProvider;
 }
 
 export type OpenAIAuthToken = {
@@ -65,8 +64,8 @@ class ChatGPTLanguageModel implements LanguageModelV4 {
     // doGenerate from the streaming API.
     const result = await this.doStream(options);
     const content: LanguageModelV4Content[] = [];
-    const text = new Map<string, { text: string; providerMetadata?: any }>();
-    const reasoning = new Map<string, { text: string; providerMetadata?: any }>();
+    const text = new Map<string, { text: string; providerMetadata?: SharedV4ProviderMetadata }>();
+    const reasoning = new Map<string, { text: string; providerMetadata?: SharedV4ProviderMetadata }>();
     let warnings: SharedV4Warning[] = [];
     let finishReason: LanguageModelV4FinishReason = { unified: "other", raw: undefined };
     let usage: LanguageModelV4Usage = emptyUsage();
@@ -191,11 +190,10 @@ export function createChatGPTOAuth(options: ChatGPTOAuthProviderSettings = {}): 
 
   const createModel = (modelId: string) => new ChatGPTLanguageModel(openai.responses(modelId), sessionId);
   const provider = ((modelId: string) => createModel(modelId)) as unknown as ChatGPTOAuthProvider;
-  Object.assign(provider, openai, {
-    languageModel: createModel,
-    responses: createModel,
-    openai,
-  });
+  Object.defineProperty(provider, "specificationVersion", { value: "v4" });
+  provider.languageModel = createModel;
+  provider.embeddingModel = unsupportedModel("embedding");
+  provider.imageModel = unsupportedModel("image");
   return provider;
 }
 
@@ -205,31 +203,23 @@ function createLazyDefaultProvider(): ChatGPTOAuthProvider {
   let cached: ChatGPTOAuthProvider | undefined;
   const get = () => (cached ??= createChatGPTOAuth());
   const provider = ((modelId: string) => get()(modelId)) as unknown as ChatGPTOAuthProvider;
-  provider.languageModel = (modelId: string) => get().languageModel(modelId);
-  provider.responses = (modelId: string) => get().responses(modelId);
-  provider.chat = (modelId: string) => get().chat(modelId);
-  provider.completion = (modelId: string) => get().completion(modelId);
-  provider.embedding = (modelId: string) => get().embedding(modelId);
-  provider.embeddingModel = (modelId: string) => get().embeddingModel(modelId);
-  provider.textEmbedding = (modelId: string) => get().textEmbedding(modelId);
-  provider.textEmbeddingModel = (modelId: string) => get().textEmbeddingModel(modelId);
-  provider.image = (modelId: string) => get().image(modelId);
-  provider.imageModel = (modelId: string) => get().imageModel(modelId);
-  provider.transcription = (modelId: string) => get().transcription(modelId);
-  provider.speech = (modelId: string) => get().speech(modelId);
-  provider.files = () => get().files();
-  provider.skills = () => get().skills();
   Object.defineProperty(provider, "specificationVersion", { value: "v4" });
-  Object.defineProperty(provider, "tools", { get: () => get().tools });
-  Object.defineProperty(provider, "experimental_realtime", { get: () => get().experimental_realtime });
-  Object.defineProperty(provider, "openai", { get: () => get().openai });
+  provider.languageModel = (modelId: string) => get().languageModel(modelId);
+  provider.embeddingModel = unsupportedModel("embedding");
+  provider.imageModel = unsupportedModel("image");
   return provider;
+}
+
+function unsupportedModel(kind: string) {
+  return (modelId: string): never => {
+    throw new Error(`ChatGPT OAuth does not support ${kind} models: ${modelId}`);
+  };
 }
 
 function resolveAccessToken(explicit?: string): string {
   if (explicit) return explicit;
   return loadApiKey({
-    apiKey: env("CHATGPT_ACCESS_TOKEN") ?? env("CHATGPT_OAUTH_TOKEN") ?? env("OPENAI_CODEX_OAUTH_TOKEN"),
+    apiKey: env("CHATGPT_ACCESS_TOKEN"),
     environmentVariableName: "CHATGPT_ACCESS_TOKEN",
     description: "ChatGPT OAuth access token",
   });
@@ -257,7 +247,7 @@ function decodeJwtPayload(token: string): Record<string, any> {
 }
 
 /** Refresh a ChatGPT OAuth access token. Store the returned refresh token; OpenAI rotates it. */
-export async function refreshChatGPTOAuthToken(refreshToken = env("CHATGPT_REFRESH_TOKEN") ?? env("OPENAI_CODEX_REFRESH_TOKEN")): Promise<OpenAIAuthToken> {
+export async function refreshChatGPTOAuthToken(refreshToken = env("CHATGPT_REFRESH_TOKEN")): Promise<OpenAIAuthToken> {
   if (!refreshToken) throw new Error("Missing refresh token. Pass one or set CHATGPT_REFRESH_TOKEN.");
   const response = await fetch(TOKEN_URL, {
     method: "POST",

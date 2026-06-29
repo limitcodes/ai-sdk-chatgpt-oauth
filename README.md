@@ -22,12 +22,6 @@ export CHATGPT_ACCOUNT_ID="acc_..."
 export CHATGPT_SESSION_ID="my-app-session"
 ```
 
-Supported aliases:
-
-- `CHATGPT_OAUTH_TOKEN`
-- `OPENAI_CODEX_OAUTH_TOKEN`
-- `CHATGPT_REFRESH_TOKEN` / `OPENAI_CODEX_REFRESH_TOKEN` for `refreshChatGPTOAuthToken()`
-
 Package rule: use access tokens for requests; use refresh tokens only in your app/CLI to mint a fresh access token. Don't publish or commit either.
 
 ## Usage
