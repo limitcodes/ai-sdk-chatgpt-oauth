@@ -1,0 +1,79 @@
+# ai-sdk-chatgpt-oauth
+
+AI SDK provider for ChatGPT / OpenAI Codex OAuth.
+
+This targets the ChatGPT Codex Responses endpoint (`https://chatgpt.com/backend-api/codex/responses`) and is meant for users who already have ChatGPT OAuth credentials, not an OpenAI API key.
+
+## Install
+
+```bash
+npm install ai-sdk-chatgpt-oauth ai
+```
+
+## Auth
+
+Preferred env vars:
+
+```bash
+export CHATGPT_ACCESS_TOKEN="eyJ..."       # OAuth access JWT
+# optional, normally extracted from the JWT:
+export CHATGPT_ACCOUNT_ID="acc_..."
+# optional, stable non-secret id for prompt-cache routing:
+export CHATGPT_SESSION_ID="my-app-session"
+```
+
+Supported aliases:
+
+- `CHATGPT_OAUTH_TOKEN`
+- `OPENAI_CODEX_OAUTH_TOKEN`
+- `CHATGPT_REFRESH_TOKEN` / `OPENAI_CODEX_REFRESH_TOKEN` for `refreshChatGPTOAuthToken()`
+
+Package rule: use access tokens for requests; use refresh tokens only in your app/CLI to mint a fresh access token. Don't publish or commit either.
+
+## Usage
+
+```ts
+import { generateText } from "ai";
+import { chatgpt } from "ai-sdk-chatgpt-oauth";
+
+const { text } = await generateText({
+  model: chatgpt("gpt-5.2-codex"),
+  prompt: "Say hi",
+});
+```
+
+Or pass credentials explicitly:
+
+```ts
+import { createChatGPTOAuth } from "ai-sdk-chatgpt-oauth";
+
+const chatgpt = createChatGPTOAuth({
+  accessToken: process.env.CHATGPT_ACCESS_TOKEN,
+  accountId: process.env.CHATGPT_ACCOUNT_ID, // optional
+});
+```
+
+Refresh helper:
+
+```ts
+import { refreshChatGPTOAuthToken } from "ai-sdk-chatgpt-oauth";
+
+const next = await refreshChatGPTOAuthToken(process.env.CHATGPT_REFRESH_TOKEN);
+// persist next.refresh, use next.access for createChatGPTOAuth({ accessToken: next.access })
+```
+
+## Pi-style custom provider config
+
+For tools like Pi, expose this as provider `chatgpt-oauth` and read `CHATGPT_ACCESS_TOKEN`. If Pi handles OAuth storage itself, store the access/refresh pair in its auth store and pass the access token to `createChatGPTOAuth`; refresh before expiry.
+
+Provider defaults copied from Pi's OpenAI Codex implementation:
+
+- base URL: `https://chatgpt.com/backend-api/codex`
+- header: `chatgpt-account-id` from JWT claim or `CHATGPT_ACCOUNT_ID`
+- header: `OpenAI-Beta: responses=experimental`
+- if `sessionId` / `CHATGPT_SESSION_ID` is set:
+  - header: `session-id: <sessionId>`
+  - header: `x-client-request-id: <sessionId>`
+  - provider option: `openai.promptCacheKey = <sessionId>`
+- provider option: `openai.store = false`
+- provider option: `openai.include = ["reasoning.encrypted_content"]`
