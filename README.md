@@ -18,11 +18,11 @@ Preferred env vars:
 export CHATGPT_ACCESS_TOKEN="eyJ..."       # OAuth access JWT
 # optional, normally extracted from the JWT:
 export CHATGPT_ACCOUNT_ID="acc_..."
-# optional, stable non-secret id for prompt-cache routing:
-export CHATGPT_SESSION_ID="my-app-session"
 ```
 
 Package rule: use access tokens for requests; use refresh tokens only in your app/CLI to mint a fresh access token. Don't publish or commit either.
+
+Access tokens expire. This package does not mutate your env vars or persist refreshed credentials. In production, store the refresh token in your DB/secret store, refresh before/when expired, persist the rotated `next.refresh`, and pass `next.access` directly to `createChatGPTOAuth()`.
 
 ## Usage
 
@@ -44,6 +44,7 @@ import { createChatGPTOAuth } from "ai-sdk-chatgpt-oauth";
 const chatgpt = createChatGPTOAuth({
   accessToken: process.env.CHATGPT_ACCESS_TOKEN,
   accountId: process.env.CHATGPT_ACCOUNT_ID, // optional
+  sessionId: `chat:${chatId}`, // optional, improves prompt-cache routing
 });
 ```
 
@@ -65,7 +66,7 @@ Provider defaults copied from Pi's OpenAI Codex implementation:
 - base URL: `https://chatgpt.com/backend-api/codex`
 - header: `chatgpt-account-id` from JWT claim or `CHATGPT_ACCOUNT_ID`
 - header: `OpenAI-Beta: responses=experimental`
-- if `sessionId` / `CHATGPT_SESSION_ID` is set:
+- if `sessionId` is set:
   - header: `session-id: <sessionId>`
   - header: `x-client-request-id: <sessionId>`
   - provider option: `openai.promptCacheKey = <sessionId>`

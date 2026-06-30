@@ -25,7 +25,7 @@ export interface ChatGPTOAuthProviderSettings {
   accountId?: string;
   /** Defaults to https://chatgpt.com/backend-api/codex. */
   baseURL?: string;
-  /** Stable id for prompt-cache routing. Defaults to CHATGPT_SESSION_ID. */
+  /** Stable id for prompt-cache routing, e.g. your chat/conversation id. */
   sessionId?: string;
   /** Extra request headers. Use null values by passing fetch middleware if you need to delete defaults. */
   headers?: Record<string, string>;
@@ -171,7 +171,7 @@ export function createChatGPTOAuth(options: ChatGPTOAuthProviderSettings = {}): 
   const accessToken = resolveAccessToken(options.accessToken);
   const accountId = options.accountId ?? env("CHATGPT_ACCOUNT_ID") ?? extractChatGPTAccountId(accessToken);
   const baseURL = withoutTrailingSlash(options.baseURL) ?? DEFAULT_BASE_URL;
-  const sessionId = options.sessionId ?? env("CHATGPT_SESSION_ID");
+  const sessionId = options.sessionId;
 
   const cacheHeaders: Record<string, string> = sessionId ? { "session-id": sessionId, "x-client-request-id": sessionId } : {};
   const openai = createOpenAI({
