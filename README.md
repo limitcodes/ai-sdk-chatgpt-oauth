@@ -63,19 +63,3 @@ import { refreshChatGPTOAuthToken } from "ai-sdk-chatgpt-oauth";
 const next = await refreshChatGPTOAuthToken(process.env.CHATGPT_REFRESH_TOKEN);
 // persist next.refresh, use next.access for createChatGPTOAuth({ accessToken: next.access })
 ```
-
-## Pi-style custom provider config
-
-For tools like Pi, expose this as provider `chatgpt-oauth` and read `CHATGPT_ACCESS_TOKEN`. If Pi handles OAuth storage itself, store the access/refresh pair in its auth store and pass the access token to `createChatGPTOAuth`; refresh before expiry.
-
-Provider defaults copied from Pi's OpenAI Codex implementation:
-
-- base URL: `https://chatgpt.com/backend-api/codex`
-- header: `chatgpt-account-id` from JWT claim or `CHATGPT_ACCOUNT_ID`
-- header: `OpenAI-Beta: responses=experimental`
-- if `sessionId` is set:
-  - header: `session-id: <sessionId>`
-  - header: `x-client-request-id: <sessionId>`
-  - provider option: `openai.promptCacheKey = <sessionId>`
-- provider option: `openai.store = false`
-- provider option: `openai.include = ["reasoning.encrypted_content"]`
