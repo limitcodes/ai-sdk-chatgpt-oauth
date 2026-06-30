@@ -7,7 +7,12 @@ This targets the ChatGPT Codex Responses endpoint (`https://chatgpt.com/backend-
 ## Install
 
 ```bash
+# From npm, once published:
 npm install ai-sdk-chatgpt-oauth ai
+
+# Or directly from GitHub:
+npm install github:Haripritamreddy/ai-sdk-chatgpt-oauth ai
+# bun add github:Haripritamreddy/ai-sdk-chatgpt-oauth ai
 ```
 
 ## Auth
@@ -18,6 +23,8 @@ Preferred env vars:
 export CHATGPT_ACCESS_TOKEN="eyJ..."       # OAuth access JWT
 # optional, normally extracted from the JWT:
 export CHATGPT_ACCOUNT_ID="acc_..."
+# optional, for refreshing expired access tokens:
+export CHATGPT_REFRESH_TOKEN="..."
 ```
 
 Package rule: use access tokens for requests; use refresh tokens only in your app/CLI to mint a fresh access token. Don't publish or commit either.
