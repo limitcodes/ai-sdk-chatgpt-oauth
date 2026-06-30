@@ -11,8 +11,8 @@ This targets the ChatGPT Codex Responses endpoint (`https://chatgpt.com/backend-
 npm install ai-sdk-chatgpt-oauth ai
 
 # Or directly from GitHub:
-npm install github:Haripritamreddy/ai-sdk-chatgpt-oauth ai
-# bun add github:Haripritamreddy/ai-sdk-chatgpt-oauth ai
+npm install github:limitcodes/ai-sdk-chatgpt-oauth ai
+# bun add github:limitcodes/ai-sdk-chatgpt-oauth ai
 ```
 
 ## Auth
